@@ -78,12 +78,13 @@ const SEED_EXERCISES = [
     { id: "e45", name: "Frog Stretch", categories: ["Hip Adduction"], type: "stretch", instructions: "" },
     { id: "e46", name: "Butterfly Stretch", categories: ["Hip Adduction"], type: "stretch", instructions: "" },
 
-    // Neck PT (Neck Routine)
-    { id: "n1", name: "Doorway Pectoral Stretch", categories: [], type: "stretch", instructions: "Phase 1: Hold 15–30s" },
-    { id: "n2", name: "Upper Trapezius Stretch", categories: [], type: "stretch", instructions: "Phase 1: Hold 20s, 2x per side" },
-    { id: "n3", name: "Chin Tucks", categories: [], type: "load", instructions: "Phase 2: Hold 3–5s, 15 reps" },
-    { id: "n4", name: "Resistance Band Rows", categories: [], type: "load", instructions: "Phase 3: 3 sets x 10 reps" },
-    { id: "n5", name: "Wall Angels", categories: [], type: "load", instructions: "Phase 3: 12 reps" },
+    // Routine F — Neck
+    { id: "n1", name: "Doorway Pectoral Stretch", categories: [], type: "stretch", instructions: "2 sets of 30 seconds" },
+    { id: "n2", name: "Upper Trapezius Stretch", categories: [], type: "stretch", instructions: "30 seconds each side" },
+    { id: "n3", name: "Chin Tucks", categories: [], type: "load", instructions: "2 sets of 10" },
+    { id: "n4", name: "Resistance Band Rows", categories: [], type: "load", instructions: "3 sets of 10" },
+    { id: "n5", name: "Wall Slides", categories: [], type: "load", instructions: "2 sets of 10" },
+    { id: "n6", name: "Prone Y Raises", categories: [], type: "load", instructions: "2 sets of 10" },
 
     // Session E specific
     { id: "e47", name: "Segmental Cat-Cow", categories: ["Back Flexion", "Back Extension"], type: "n/a", instructions: "Mobility (unloaded)" },
@@ -190,10 +191,24 @@ const SEED_TEMPLATES = [
             { id: "e52", defaultSets: 1, defaultReps: "45s/side" },
             { id: "e38", defaultSets: 1, defaultReps: "45s/side" }
         ]
+    },
+    {
+        id: "t6",
+        name: "Routine F - Neck",
+        description: "Chin Tucks, Pectoral and Trapezius Stretches, Rows, Wall Slides, Prone Y Raises",
+        workoutKind: "neck",
+        exercises: [
+            { id: "n3", defaultSets: 2, defaultReps: "10" },
+            { id: "n1", defaultSets: 2, defaultReps: "30 seconds" },
+            { id: "n2", defaultSets: 1, defaultReps: "30s each side" },
+            { id: "n4", defaultSets: 3, defaultReps: "10" },
+            { id: "n5", defaultSets: 2, defaultReps: "10" },
+            { id: "n6", defaultSets: 2, defaultReps: "10" }
+        ]
     }
 ];
 
-export const NECK_EXERCISES = ["n1", "n2", "n3", "n4", "n5"];
+export const NECK_EXERCISES = ["n1", "n2", "n3", "n4", "n5", "n6"];
 
 export async function checkAndSeedDB() {
     const exercises = await getAll('exercises');
@@ -221,5 +236,8 @@ export async function checkAndSeedDB() {
         // Migrate existing installs to the current built-in Session D checklist.
         await putAll('exercises', REFORMER_EXERCISES);
         await putAll('templates', [SEED_TEMPLATES.find(t => t.id === 't4')]);
+        // Migrate existing installs to the current built-in Routine F.
+        await putAll('exercises', SEED_EXERCISES.filter(ex => NECK_EXERCISES.includes(ex.id)));
+        await putAll('templates', [SEED_TEMPLATES.find(t => t.id === 't6')]);
     }
 }

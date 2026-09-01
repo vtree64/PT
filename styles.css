@@ -134,16 +134,20 @@ body {
 .card { background-color: var(--surface-color); padding: 16px; border-radius: 16px; border: none; }
 .card-title { font-size: 14px; color: var(--text-secondary); }
 .card-value { font-size: 24px; font-weight: 600; margin-top: 4px; }
+.dashboard-summary-action { color: var(--text-primary); font: inherit; text-align: left; cursor: pointer; }
+.dashboard-summary-action:active { background-color: var(--primary-light); }
+.dashboard-summary-action:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+.card-action-hint { color: var(--primary-color); font-size: 12px; font-weight: 600; margin-top: 8px; }
 
 .dashboard-section-header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 24px; }
 .dashboard-section-header .section-title { margin: 0 0 10px; }
 .matrix-legend { color: var(--text-secondary); font-size: 12px; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .matrix-container { background-color: var(--surface-color); border-radius: 16px; overflow: hidden; }
 .matrix-header, .matrix-row { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(64px, .75fr) minmax(64px, .75fr); align-items: center; }
-.matrix-header { font-size: 12px; color: var(--text-secondary); font-weight: 500; border-bottom: 1px solid var(--border-color); }
+.matrix-header { font-size: 13.2px; color: var(--text-secondary); font-weight: 500; border-bottom: 1px solid var(--border-color); }
 .matrix-row { border-bottom: 1px solid var(--border-color); }
 .matrix-row:last-child { border-bottom: none; }
-.matrix-cell { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 46px; padding: 10px 8px; border-radius: 0; font-size: 13px; font-weight: 500; }
+.matrix-cell { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 46px; padding: 10px 8px; border-radius: 0; font-size: 14.3px; font-weight: 500; }
 .category-name { justify-content: flex-start; font-weight: 500; padding-left: 12px; }
 .matrix-row .matrix-cell[role="button"] { cursor: pointer; background-color: transparent; color: var(--text-primary); }
 .matrix-row .matrix-cell[role="button"]:active { background-color: var(--primary-light); }

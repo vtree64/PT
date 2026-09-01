@@ -1,5 +1,5 @@
 import { initDB, getAll, get, put, putAll } from './db.js';
-import { CATEGORIES, NECK_EXERCISES, checkAndSeedDB } from './seed.js';
+import { CATEGORIES, checkAndSeedDB } from './seed.js';
 
 // --- State ---
 let currentView = 'view-dashboard';
@@ -129,10 +129,10 @@ function renderDashboard() {
             const ts = lastLogged[cat][type];
             const daysAgo = ts === 0 ? Infinity : Math.floor((now - ts) / msInDay);
             
-            if (daysAgo < 10) {
+            if (daysAgo < 7) {
                 cell.classList.add('status-green');
                 cell.innerHTML = `<span class="status-dot status-green-dot"></span><span>${daysAgo === 0 ? 'Today' : `${daysAgo}d`}</span>`;
-            } else if (daysAgo <= 14) {
+            } else if (daysAgo < 14) {
                 cell.classList.add('status-yellow');
                 cell.innerHTML = `<span class="status-dot status-yellow-dot"></span><span>${daysAgo}d</span>`;
             } else {
@@ -176,7 +176,7 @@ function renderTemplates() {
             <button class="btn btn-secondary btn-sm mt-2">Log this session</button>
         `;
         el.querySelector('button').addEventListener('click', () => {
-            openWorkoutForm('pt', t.exercises);
+            openWorkoutForm(t.workoutKind || 'pt', t.exercises);
         });
         listEl.appendChild(el);
     });
@@ -224,7 +224,7 @@ function renderRoutinesTab() {
         
         el.querySelector('.btn-log-from-routine').addEventListener('click', () => {
             document.querySelector('.nav-item[data-target="view-log"]').click();
-            openWorkoutForm('pt', t.exercises);
+            openWorkoutForm(t.workoutKind || 'pt', t.exercises);
         });
         
         listEl.appendChild(el);
@@ -234,8 +234,14 @@ function renderRoutinesTab() {
 function setupEventListeners() {
     document.getElementById('btn-freeform').addEventListener('click', () => openWorkoutForm('pt', []));
     document.getElementById('btn-other').addEventListener('click', () => openWorkoutForm('other', []));
-    document.getElementById('btn-log-neck').addEventListener('click', () => {
-        openWorkoutForm('neck', NECK_EXERCISES.map(id => ({ id, defaultSets: 1, defaultReps: '' })));
+    document.getElementById('neck-summary-card').addEventListener('click', () => {
+        const routineF = templatesList.find(template => template.id === 't6');
+        if (!routineF) {
+            showToast('Routine F is unavailable.');
+            return;
+        }
+        document.querySelector('.nav-item[data-target="view-log"]').click();
+        openWorkoutForm('neck', routineF.exercises);
     });
     let newRoutineExercises = [];
 
@@ -446,7 +452,7 @@ function openWorkoutForm(kind, initialExercises = []) {
     
     const isChecklist = initialExercises.some(ex => ex.checklist);
     let title = isChecklist ? "Session D Reformer Checklist" : "Log Session";
-    if (kind === 'neck') title = "Neck Routine";
+    if (kind === 'neck') title = "Routine F - Neck";
     if (kind === 'other') title = "Other Workout";
     document.getElementById('workout-form-title').textContent = title;
     

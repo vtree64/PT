@@ -17,10 +17,11 @@
         <!-- Dashboard View -->
         <section id="view-dashboard" class="view active">
             <div class="summary-cards">
-                <div class="card">
+                <button class="card dashboard-summary-action" id="neck-summary-card" type="button" aria-label="Log Routine F - Neck">
                     <div class="card-title">Neck PT Weekly</div>
                     <div class="card-value" id="neck-streak">0 / 5</div>
-                </div>
+                    <div class="card-action-hint">Log Routine F →</div>
+                </button>
                 <div class="card">
                     <div class="card-title">Overdue Targets</div>
                     <div class="card-value" id="overdue-count">0</div>
@@ -46,7 +47,6 @@
             <div id="log-selection">
                 <h2 class="section-title">Quick Log</h2>
                 <div class="template-list" id="template-list"></div>
-                <button class="btn btn-primary mt-4 w-100" id="btn-log-neck">Log Neck Routine</button>
                 <button class="btn btn-secondary mt-2 w-100" id="btn-freeform">Freeform Workout</button>
                 <button class="btn btn-secondary mt-2 w-100" id="btn-other">Other Workout (Cardio, etc)</button>
             </div>
