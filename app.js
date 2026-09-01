@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     renderDashboard();
     renderTemplates();
-    renderNeckRoutine();
+    renderRoutinesTab();
     renderHistory();
 });
 
@@ -74,10 +74,16 @@ function renderDashboard() {
     CATEGORIES.forEach(c => lastLogged[c] = { stretch: 0, load: 0 });
     
     let neckCountThisWeek = 0;
-    const oneWeekAgo = now - (7 * msInDay);
+    
+    // Find the start of the current week (Monday at 00:00:00 local time)
+    const currentDate = new Date(now);
+    const dayOfWeek = currentDate.getDay(); // 0 is Sunday, 1 is Monday
+    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const lastMonday = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - daysSinceMonday, 0, 0, 0, 0);
+    const startOfWeekMs = lastMonday.getTime();
     
     workoutLogs.forEach(log => {
-        if (log.workout_kind === 'neck' && log.date > oneWeekAgo) {
+        if (log.workout_kind === 'neck' && log.date >= startOfWeekMs) {
             neckCountThisWeek++;
         }
         
@@ -144,7 +150,7 @@ function renderDashboard() {
         matrixEl.appendChild(row);
     });
     
-    document.getElementById('neck-streak').textContent = `${neckCountThisWeek} / 3`;
+    document.getElementById('neck-streak').textContent = `${neckCountThisWeek} / 5`;
     document.getElementById('overdue-count').textContent = overdueCount;
 }
 
@@ -168,19 +174,51 @@ function renderTemplates() {
     });
 }
 
-function renderNeckRoutine() {
-    const listEl = document.getElementById('neck-routine-list');
+function renderRoutinesTab() {
+    const listEl = document.getElementById('routines-list');
+    if (!listEl) return;
     listEl.innerHTML = '';
     
-    NECK_EXERCISES.forEach(eid => {
-        const ex = exercisesMap[eid];
-        if(!ex) return;
+    templatesList.forEach(t => {
         const el = document.createElement('div');
-        el.className = 'exercise-item';
+        el.className = 'template-item';
+        
+        const exHtml = t.exercises.map(exObj => {
+            const ex = exercisesMap[exObj.id];
+            return t.inputMode === 'checklist'
+                ? `<li>${ex ? ex.name : 'Unknown'} <span class="category-hint">${ex ? formatCategoryTags(ex) : ''}</span></li>`
+                : `<li>${ex ? ex.name : 'Unknown'} - ${exObj.defaultSets} sets x ${exObj.defaultReps}</li>`;
+        }).join('');
+        
         el.innerHTML = `
-            <div class="template-title">${ex.name}</div>
-            <div class="template-desc">${ex.instructions}</div>
+            <div class="template-title" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                <span>${t.name}</span>
+                <span class="expand-icon" style="font-size: 12px;">▼</span>
+            </div>
+            <div class="template-desc mb-2">${t.description || ''}</div>
+            <div class="routine-ex-list hidden mt-2" style="border-top: 1px solid var(--border-color); padding-top: 8px;">
+                <ul style="font-size:13px; margin-left:16px; margin-bottom:12px; color:var(--text-primary); list-style-type:circle;">${exHtml}</ul>
+                <button class="btn btn-secondary btn-sm mt-2 w-100 btn-log-from-routine">Log this routine</button>
+            </div>
         `;
+        
+        el.querySelector('.template-title').addEventListener('click', () => {
+            const list = el.querySelector('.routine-ex-list');
+            const icon = el.querySelector('.expand-icon');
+            if (list.classList.contains('hidden')) {
+                list.classList.remove('hidden');
+                icon.textContent = '▲';
+            } else {
+                list.classList.add('hidden');
+                icon.textContent = '▼';
+            }
+        });
+        
+        el.querySelector('.btn-log-from-routine').addEventListener('click', () => {
+            document.querySelector('.nav-item[data-target="view-log"]').click();
+            openWorkoutForm('pt', t.exercises);
+        });
+        
         listEl.appendChild(el);
     });
 }
@@ -189,8 +227,100 @@ function setupEventListeners() {
     document.getElementById('btn-freeform').addEventListener('click', () => openWorkoutForm('pt', []));
     document.getElementById('btn-other').addEventListener('click', () => openWorkoutForm('other', []));
     document.getElementById('btn-log-neck').addEventListener('click', () => {
-        document.querySelector('.nav-item[data-target="view-log"]').click();
         openWorkoutForm('neck', NECK_EXERCISES.map(id => ({ id, defaultSets: 1, defaultReps: '' })));
+    });
+    let newRoutineExercises = [];
+
+    document.getElementById('btn-create-routine').addEventListener('click', () => {
+        document.getElementById('new-routine-name').value = '';
+        document.getElementById('new-routine-desc').value = '';
+        newRoutineExercises = [];
+        renderNewRoutineExercises();
+        
+        // Populate select
+        const select = document.getElementById('new-routine-exercise-select');
+        select.innerHTML = '<option value="">-- Select Exercise --</option>';
+        Object.values(exercisesMap).sort((a, b) => a.name.localeCompare(b.name)).forEach(ex => {
+            const opt = document.createElement('option');
+            opt.value = ex.id;
+            opt.textContent = ex.name;
+            select.appendChild(opt);
+        });
+        
+        document.getElementById('create-routine-modal').classList.remove('hidden');
+    });
+
+    document.getElementById('btn-close-create-routine').addEventListener('click', () => {
+        document.getElementById('create-routine-modal').classList.add('hidden');
+    });
+
+    document.getElementById('btn-add-routine-ex').addEventListener('click', () => {
+        const select = document.getElementById('new-routine-exercise-select');
+        if (select.value) {
+            newRoutineExercises.push({
+                id: select.value,
+                defaultSets: 3,
+                defaultReps: ''
+            });
+            renderNewRoutineExercises();
+        }
+    });
+
+    function renderNewRoutineExercises() {
+        const container = document.getElementById('new-routine-exercises');
+        container.innerHTML = '';
+        newRoutineExercises.forEach((exObj, idx) => {
+            const ex = exercisesMap[exObj.id];
+            const el = document.createElement('div');
+            el.className = 'form-exercise';
+            el.innerHTML = `
+                <div class="form-exercise-header">
+                    <span class="form-exercise-title">${ex.name}</span>
+                    <button class="remove-btn" data-idx="${idx}">&times;</button>
+                </div>
+                <div class="form-exercise-inputs">
+                    <input type="text" placeholder="Sets" value="${exObj.defaultSets}" data-field="defaultSets" data-idx="${idx}">
+                    <input type="text" placeholder="Reps" value="${exObj.defaultReps}" data-field="defaultReps" data-idx="${idx}">
+                </div>
+            `;
+            el.querySelector('.remove-btn').addEventListener('click', () => {
+                newRoutineExercises.splice(idx, 1);
+                renderNewRoutineExercises();
+            });
+            el.querySelectorAll('input').forEach(inp => {
+                inp.addEventListener('input', (e) => {
+                    const i = e.target.getAttribute('data-idx');
+                    const field = e.target.getAttribute('data-field');
+                    newRoutineExercises[i][field] = e.target.value;
+                });
+            });
+            container.appendChild(el);
+        });
+    }
+
+    document.getElementById('btn-save-routine').addEventListener('click', async () => {
+        const name = document.getElementById('new-routine-name').value.trim();
+        const desc = document.getElementById('new-routine-desc').value.trim();
+        if (!name || newRoutineExercises.length === 0) {
+            showToast('Please provide a name and at least one exercise.');
+            return;
+        }
+        
+        const newTemplate = {
+            id: 't_' + Date.now(),
+            name: name,
+            description: desc,
+            exercises: newRoutineExercises
+        };
+        
+        await put('templates', newTemplate);
+        templatesList.push(newTemplate);
+        
+        renderRoutinesTab();
+        renderTemplates(); // updates Quick Log panel
+        
+        document.getElementById('create-routine-modal').classList.add('hidden');
+        showToast('Routine created!');
     });
     
     document.getElementById('btn-back-log').addEventListener('click', closeWorkoutForm);
@@ -306,7 +436,8 @@ function openWorkoutForm(kind, initialExercises = []) {
     const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
     document.getElementById('workout-date-custom').value = todayStr;
     
-    let title = "Log Session";
+    const isChecklist = initialExercises.some(ex => ex.checklist);
+    let title = isChecklist ? "Session D Reformer Checklist" : "Log Session";
     if (kind === 'neck') title = "Neck Routine";
     if (kind === 'other') title = "Other Workout";
     document.getElementById('workout-form-title').textContent = title;
@@ -333,14 +464,14 @@ function openWorkoutForm(kind, initialExercises = []) {
         select.appendChild(opt);
     });
     
-    if (kind === 'neck') {
+    if (kind === 'neck' || isChecklist) {
         document.getElementById('add-exercise-group').classList.add('hidden');
     } else {
         document.getElementById('add-exercise-group').classList.remove('hidden');
     }
     
     initialExercises.forEach(exObj => {
-        addExerciseToForm(exObj.id, exObj.defaultSets || 3, exObj.defaultReps || '');
+        addExerciseToForm(exObj.id, exObj.defaultSets || (exObj.checklist ? '' : 3), exObj.defaultReps || '', exObj.checklist || false);
     });
 }
 
@@ -349,7 +480,7 @@ function closeWorkoutForm() {
     document.getElementById('log-selection').classList.remove('hidden');
 }
 
-function addExerciseToForm(exerciseId, defaultSets, defaultReps) {
+function addExerciseToForm(exerciseId, defaultSets, defaultReps, checklist = false) {
     const ex = exercisesMap[exerciseId];
     if (!ex) return;
     
@@ -360,7 +491,9 @@ function addExerciseToForm(exerciseId, defaultSets, defaultReps) {
         sets: defaultSets,
         reps: defaultReps,
         weight: '',
-        exercise_notes: ''
+        exercise_notes: '',
+        checklist,
+        checked: false
     });
     
     renderWorkoutFormExercises();
@@ -378,7 +511,19 @@ function renderWorkoutFormExercises() {
     currentWorkoutForm.entries.forEach(entry => {
         const ex = exercisesMap[entry.exercise_id];
         const el = document.createElement('div');
-        el.className = 'form-exercise';
+        el.className = entry.checklist ? 'checklist-exercise' : 'form-exercise';
+
+        if (entry.checklist) {
+            el.innerHTML = `
+                <label class="checklist-label">
+                    <input type="checkbox" ${entry.checked ? 'checked' : ''}>
+                    <span><strong>${ex.name}</strong><span class="category-hint">${formatCategoryTags(ex)}</span></span>
+                </label>
+            `;
+            el.querySelector('input').addEventListener('change', e => { entry.checked = e.target.checked; });
+            container.appendChild(el);
+            return;
+        }
         
         el.innerHTML = `
             <div class="form-exercise-header">
@@ -409,8 +554,13 @@ function renderWorkoutFormExercises() {
 }
 
 async function saveWorkout() {
-    if (currentWorkoutForm.entries.length === 0 && currentWorkoutForm.kind !== 'other') {
-        showToast('Please add at least one exercise.');
+    const checklistMode = currentWorkoutForm.entries.some(entry => entry.checklist);
+    const entriesToSave = checklistMode
+        ? currentWorkoutForm.entries.filter(entry => entry.checked).map(({ checked, checklist, ...entry }) => entry)
+        : currentWorkoutForm.entries;
+
+    if (entriesToSave.length === 0 && currentWorkoutForm.kind !== 'other') {
+        showToast(checklistMode ? 'Please check at least one exercise.' : 'Please add at least one exercise.');
         return;
     }
     
@@ -433,7 +583,7 @@ async function saveWorkout() {
         id: 'log_' + Date.now(),
         date: workoutTimestamp,
         workout_kind: currentWorkoutForm.kind,
-        entries: currentWorkoutForm.entries,
+        entries: entriesToSave,
         notes: notes
     };
     
@@ -512,7 +662,8 @@ function renderHistory(filter = 'all') {
         
         let entriesHtml = log.entries.map(ent => {
             const ex = exercisesMap[ent.exercise_id];
-            let details = `<li>${ex ? ex.name : 'Unknown'} - ${ent.sets} sets x ${ent.reps} ${ent.weight ? '('+ent.weight+')' : ''}`;
+            const hasPrescription = ent.sets !== '' && ent.sets != null && ent.reps !== '' && ent.reps != null;
+            let details = `<li>${ex ? ex.name : 'Unknown'}${hasPrescription ? ` - ${ent.sets} sets x ${ent.reps}` : ''}${ent.weight ? ' ('+ent.weight+')' : ''}`;
             if (ent.exercise_notes) {
                 details += `<br><span style="color:var(--text-secondary);font-size:12px;margin-left:8px;">↳ ${ent.exercise_notes}</span>`;
             }
@@ -533,6 +684,10 @@ function renderHistory(filter = 'all') {
 }
 
 // --- Utils ---
+function formatCategoryTags(exercise) {
+    return exercise.categories.map(cat => `${cat} · ${exercise.type === 'stretch' ? 'Stretch' : 'Load'}`).join(' / ');
+}
+
 function showToast(msg) {
     const toast = document.getElementById('toast');
     toast.textContent = msg;

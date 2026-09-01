@@ -19,7 +19,7 @@
             <div class="summary-cards">
                 <div class="card">
                     <div class="card-title">Neck PT Weekly</div>
-                    <div class="card-value" id="neck-streak">0 / 3</div>
+                    <div class="card-value" id="neck-streak">0 / 5</div>
                 </div>
                 <div class="card">
                     <div class="card-title">Overdue Categories</div>
@@ -41,7 +41,8 @@
             <div id="log-selection">
                 <h2 class="section-title">Quick Log</h2>
                 <div class="template-list" id="template-list"></div>
-                <button class="btn btn-primary mt-4 w-100" id="btn-freeform">Freeform Workout</button>
+                <button class="btn btn-primary mt-4 w-100" id="btn-log-neck">Log Neck Routine</button>
+                <button class="btn btn-secondary mt-2 w-100" id="btn-freeform">Freeform Workout</button>
                 <button class="btn btn-secondary mt-2 w-100" id="btn-other">Other Workout (Cardio, etc)</button>
             </div>
             
@@ -76,11 +77,13 @@
         </section>
 
         <!-- Neck PT View -->
-        <section id="view-neck" class="view">
-            <h2 class="section-title">Neck Routine</h2>
-            <p class="text-muted mb-4">Target: 2-3x per week.</p>
-            <div id="neck-routine-list"></div>
-            <button class="btn btn-primary mt-4 w-100" id="btn-log-neck">Log Neck Routine</button>
+        <!-- Routines View -->
+        <section id="view-routines" class="view">
+            <h2 class="section-title">Routines</h2>
+            <div id="routines-list">
+                <!-- Routines injected here -->
+            </div>
+            <button class="btn btn-primary mt-4 w-100" id="btn-create-routine">Create New Routine</button>
         </section>
 
         <!-- History View -->
@@ -127,6 +130,28 @@
                 <button class="btn btn-primary w-100" id="btn-close-category-modal">Close</button>
             </div>
         </div>
+
+        <!-- Create Routine Modal -->
+        <div id="create-routine-modal" class="modal hidden">
+            <div class="modal-content">
+                <h3>Create New Routine</h3>
+                <div class="form-group mt-4 mb-4">
+                    <label>Routine Name</label>
+                    <input type="text" id="new-routine-name" class="w-100 mt-2 mb-2" placeholder="e.g. Morning Mobility">
+                    <label>Description</label>
+                    <input type="text" id="new-routine-desc" class="w-100 mt-2 mb-4" placeholder="Brief description (optional)">
+                    
+                    <h4>Exercises</h4>
+                    <div id="new-routine-exercises" class="mb-2"></div>
+                    
+                    <select id="new-routine-exercise-select" class="w-100 mb-2"></select>
+                    <button class="btn btn-secondary w-100 mb-4" id="btn-add-routine-ex">Add Exercise to Routine</button>
+                </div>
+                
+                <button class="btn btn-primary w-100 mb-2" id="btn-save-routine">Save Routine</button>
+                <button class="btn btn-text w-100" id="btn-close-create-routine">Cancel</button>
+            </div>
+        </div>
         
         <!-- Toast Notification -->
         <div id="toast" class="toast hidden"></div>
@@ -141,9 +166,9 @@
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v16M4 12h16"/></svg>
             <span>Log</span>
         </button>
-        <button class="nav-item" data-target="view-neck">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 0-5 5v2a5 5 0 0 0 10 0V7a5 5 0 0 0-5-5z"/><path d="M12 14c-5 0-9 4-9 9h18c0-5-4-9-9-9z"/></svg>
-            <span>Neck</span>
+        <button class="nav-item" data-target="view-routines">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2V7a2 2 0 0 0 -2 -2h-2" /><rect x="9" y="3" width="6" height="4" rx="2" /><line x1="9" y1="12" x2="15" y2="12" /><line x1="9" y1="16" x2="15" y2="16" /></svg>
+            <span>Routines</span>
         </button>
         <button class="nav-item" data-target="view-history">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>

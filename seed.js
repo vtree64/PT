@@ -107,6 +107,27 @@ const SEED_EXERCISES = [
     { id: "m7", name: "Hamstrings", categories: [], type: "n/a", instructions: "" }
 ];
 
+export const REFORMER_EXERCISES = [
+    ["Footwork (rounded spine / scoop)", "Back Flexion", "stretch"], ["Pelvic Tilt (on carriage)", "Back Flexion", "stretch"], ["Chest Expansion (rounded)", "Back Flexion", "stretch"],
+    ["Hundreds (rounded)", "Back Flexion", "load"], ["Abdominal / Mid-Back Series", "Back Flexion", "load"], ["Teaser (on Reformer)", "Back Flexion", "load"],
+    ["Swan (mobility)", "Back Extension", "stretch"], ["Mermaid (extension phase)", "Back Extension", "stretch"], ["Chest Expansion (neutral / extended)", "Back Extension", "stretch"],
+    ["Swan (loaded with straps / springs)", "Back Extension", "load"], ["Long Box Series (extension)", "Back Extension", "load"], ["Elephant (extension phase)", "Back Extension", "load"],
+    ["Mermaid (rotation phase)", "Back Rotation", "stretch"], ["Seated Rotation (passive)", "Back Rotation", "stretch"], ["Seated Rotation with Straps", "Back Rotation", "load"], ["Side-Lying Rotation", "Back Rotation", "load"],
+    ["Mermaid (lateral flexion phase)", "Back Side Bending", "stretch"], ["Side Stretch (on Box)", "Back Side Bending", "stretch"], ["Side Plank with Lateral Spine Tilt", "Back Side Bending", "load"], ["Side Leg Press with Lateral Spine Tilt", "Back Side Bending", "load"],
+    ["Kneeling Hip Flexor Stretch", "Hip Extension", "stretch"], ["Lunge (on Reformer)", "Hip Extension", "stretch"], ["Footwork / Leg Press", "Hip Extension", "load"], ["Glute Bridge (on Reformer)", "Hip Extension", "load"], ["Single-Leg Press", "Hip Extension", "load"],
+    ["Modified Child's Pose", "Hip Flexion", "stretch"], ["Deep Squat / Eve's Lunge", "Hip Flexion", "stretch"], ["Knee Stretches", "Hip Flexion", "load"], ["Leg Circles (with straps)", "Hip Flexion", "load"],
+    ["Side-Lying Leg Abduction (passive)", "Hip Abduction", "stretch"], ["Side-Lying Leg Series (with straps)", "Hip Abduction", "load"], ["Side Plank with Leg Lift", "Hip Abduction", "load"],
+    ["Wide-Leg Footwork (passive)", "Hip Adduction", "stretch"], ["Side-Lying Adduction Stretch", "Hip Adduction", "stretch"], ["Adductor Squeezes", "Hip Adduction", "load"], ["Side-Lying Adduction (with strap)", "Hip Adduction", "load"],
+    ["Figure-4 Stretch (Reformer / Box)", "Glutes", "stretch"], ["Pigeon Stretch (on Reformer)", "Glutes", "stretch"], ["Footwork (heels)", "Glutes", "load"], ["Single-Leg Glute Bridge", "Glutes", "load"],
+    ["Footwork Heel-Cord Stretch", "Hamstrings", "stretch"], ["Leg Circles (passive hamstring stretch)", "Hamstrings", "stretch"], ["Straight-Leg Press", "Hamstrings", "load"], ["Single-Leg Footwork", "Hamstrings", "load"],
+    ["Side Plank (passive stretch)", "Back Anti-Side Bending", "stretch"], ["Side Plank (active)", "Back Anti-Side Bending", "load"], ["Single-Arm Side Press", "Back Anti-Side Bending", "load"],
+    ["Seated Rotation (passive end-range)", "Back Anti-Rotation", "stretch"], ["Plank with Single Arm / Leg Reach", "Back Anti-Rotation", "load"], ["Oblique Work (resisted rotation)", "Back Anti-Rotation", "load"],
+    ["Cat-Cow (on carriage)", "Back Anti-Extension", "stretch"], ["Plank (neutral spine)", "Back Anti-Extension", "load"], ["Dead Bug (strap resistance)", "Back Anti-Extension", "load"],
+    ["Supported Extension (on Box)", "Back Anti-Flexion", "stretch"], ["The Hundred (neutral lumbar spine)", "Back Anti-Flexion", "load"], ["Plank (anti-flexion focus)", "Back Anti-Flexion", "load"]
+].map(([name, category, type], index) => ({ id: `r${index + 1}`, name, categories: [category], type, instructions: "Session D reformer checklist" }));
+
+SEED_EXERCISES.push(...REFORMER_EXERCISES);
+
 const SEED_TEMPLATES = [
     {
         id: "t1",
@@ -150,15 +171,9 @@ const SEED_TEMPLATES = [
     {
         id: "t4",
         name: "Session D — Reformer Integration",
-        description: "Footwork, Bridging, Short Box, Long Stretch, Mermaid, Swan",
-        exercises: [
-            { id: "e1", defaultSets: 1, defaultReps: "8" },
-            { id: "e10", defaultSets: 1, defaultReps: "8/side" },
-            { id: "e14", defaultSets: 1, defaultReps: "8/side" },
-            { id: "e24", defaultSets: 1, defaultReps: "5" },
-            { id: "e11", defaultSets: 1, defaultReps: "Stretch" },
-            { id: "e6", defaultSets: 1, defaultReps: "5" }
-        ]
+        description: "Check off the Reformer exercises completed during the session.",
+        inputMode: "checklist",
+        exercises: REFORMER_EXERCISES.map(ex => ({ id: ex.id, checklist: true }))
     },
     {
         id: "t5",
@@ -203,5 +218,8 @@ export async function checkAndSeedDB() {
             console.log("Adding missing templates...", missingTpls);
             await putAll('templates', missingTpls);
         }
+        // Migrate existing installs to the current built-in Session D checklist.
+        await putAll('exercises', REFORMER_EXERCISES);
+        await putAll('templates', [SEED_TEMPLATES.find(t => t.id === 't4')]);
     }
 }
