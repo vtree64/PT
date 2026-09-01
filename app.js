@@ -131,18 +131,26 @@ function renderDashboard() {
             
             if (daysAgo < 10) {
                 cell.classList.add('status-green');
-                cell.textContent = daysAgo === 0 ? 'Today' : `${daysAgo}d`;
+                cell.innerHTML = `<span class="status-dot status-green-dot"></span><span>${daysAgo === 0 ? 'Today' : `${daysAgo}d`}</span>`;
             } else if (daysAgo <= 14) {
                 cell.classList.add('status-yellow');
-                cell.textContent = `${daysAgo}d`;
+                cell.innerHTML = `<span class="status-dot status-yellow-dot"></span><span>${daysAgo}d</span>`;
             } else {
                 cell.classList.add('status-red');
-                cell.textContent = ts === 0 ? 'Never' : `${daysAgo}d`;
+                cell.innerHTML = `<span class="status-dot status-red-dot"></span><span>${ts === 0 ? 'Never' : `${daysAgo}d`}</span>`;
                 overdueCount++;
             }
             
-            cell.style.cursor = 'pointer';
+            cell.setAttribute('role', 'button');
+            cell.setAttribute('tabindex', '0');
+            cell.setAttribute('aria-label', `${cat} ${type}: ${cell.textContent}`);
             cell.addEventListener('click', () => openCategoryModal(cat, type));
+            cell.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openCategoryModal(cat, type);
+                }
+            });
             
             row.appendChild(cell);
         });
