@@ -62,7 +62,7 @@ const SEED_EXERCISES = [
     // Hip Extension / Hamstrings / Glutes
     { id: "e34", name: "Kettlebell RDL", categories: ["Hip Extension", "Hamstrings"], type: "load", instructions: "" },
     { id: "e35", name: "Single-Leg Hip Thrust", categories: ["Hip Extension", "Glutes"], type: "load", instructions: "" },
-    { id: "e36", name: "Roman Chair Hip Extension", categories: ["Hip Extension", "Glutes"], type: "load", instructions: "" },
+    { id: "e36", name: "Roman Chair Hip Extension", categories: ["Hip Extension", "Glutes", "Back Flexion", "Back Extension"], type: "load", instructions: "" },
     { id: "e37", name: "Supine Hamstring Strap Stretch", categories: ["Hip Extension", "Hamstrings"], type: "stretch", instructions: "" },
     { id: "e38", name: "Figure-4 Stretch", categories: ["Hip Extension", "Glutes"], type: "stretch", instructions: "" },
     
@@ -163,7 +163,6 @@ const SEED_TEMPLATES = [
             { id: "e17", defaultSets: 3, defaultReps: "30-40 paces" },
             { id: "e20", defaultSets: 3, defaultReps: "10 (3s hold)" },
             { id: "e31", defaultSets: 3, defaultReps: "8-10" },
-            { id: "e2", defaultSets: 3, defaultReps: "10-12" },
             { id: "e35", defaultSets: 3, defaultReps: "10-12/side" },
             { id: "e19", defaultSets: 1, defaultReps: "60s" },
             { id: "e4", defaultSets: 1, defaultReps: "60s" }
@@ -239,5 +238,8 @@ export async function checkAndSeedDB() {
         // Migrate existing installs to the current built-in Routine F.
         await putAll('exercises', SEED_EXERCISES.filter(ex => NECK_EXERCISES.includes(ex.id)));
         await putAll('templates', [SEED_TEMPLATES.find(t => t.id === 't6')]);
+        // Keep Session A's Roman Chair mapping and Session C definition current.
+        await putAll('exercises', [SEED_EXERCISES.find(ex => ex.id === 'e36')]);
+        await putAll('templates', [SEED_TEMPLATES.find(t => t.id === 't3')]);
     }
 }

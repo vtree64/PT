@@ -11,6 +11,7 @@
     --success-bg: #c4eed0;
     --warning: #b3261e;
     --warning-bg: #f9dedc;
+    --overdue-red: #e00024;
     --caution: #b36b00;
     --caution-bg: #fdf0cc;
     
@@ -34,6 +35,7 @@
         --success-bg: #0f5223;
         --warning: #f2b8b5;
         --warning-bg: #8c1d18;
+        --overdue-red: #ff4055;
         --caution: #f0be5c;
         --caution-bg: #5c3c00;
     }
@@ -150,12 +152,13 @@ body {
 .matrix-cell { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 46px; padding: 10px 8px; border-radius: 0; font-size: 14.3px; font-weight: 500; }
 .category-name { justify-content: flex-start; font-weight: 500; padding-left: 12px; }
 .matrix-row .matrix-cell[role="button"] { cursor: pointer; background-color: transparent; color: var(--text-primary); }
+.matrix-row .matrix-cell.status-red { color: var(--overdue-red); }
 .matrix-row .matrix-cell[role="button"]:active { background-color: var(--primary-light); }
 .matrix-row .matrix-cell[role="button"]:focus-visible { outline: 2px solid var(--primary-color); outline-offset: -3px; }
 .status-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 9px; }
 .status-green-dot { background-color: var(--success); }
 .status-yellow-dot { background-color: var(--caution); }
-.status-red-dot { background-color: var(--warning); }
+.status-red-dot { background-color: var(--overdue-red); }
 
 .status-green { background-color: var(--success-bg); color: var(--success); }
 .status-yellow { background-color: var(--caution-bg); color: var(--caution); }
