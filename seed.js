@@ -158,7 +158,7 @@ const SEED_TEMPLATES = [
     {
         id: "t3",
         name: "Session C — Anti-Movement, Deep Core",
-        description: "Farmer's Carry, Pallof Press, Knee Raises, Banded Crunches, Hip Thrusts",
+        description: "Farmer's Carry, Pallof Press, Knee Raises, Hip Thrusts",
         exercises: [
             { id: "e17", defaultSets: 3, defaultReps: "30-40 paces" },
             { id: "e20", defaultSets: 3, defaultReps: "10 (3s hold)" },
