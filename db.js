@@ -99,3 +99,15 @@ export function putAll(storeName, items) {
         });
     });
 }
+
+// Commit the exercise and its routine memberships together.
+export function saveExerciseAndTemplates(exercise, templates) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(['exercises', 'templates'], 'readwrite');
+        tx.oncomplete = () => resolve();
+        tx.onabort = () => reject(tx.error || new Error('Save aborted'));
+        tx.onerror = () => reject(tx.error);
+        tx.objectStore('exercises').put(exercise);
+        templates.forEach(template => tx.objectStore('templates').put(template));
+    });
+}

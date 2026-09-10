@@ -1,3 +1,4 @@
+import { setupExerciseEditor, categoryLinks, muscleGroups } from './editor.js';
 import { initDB, getAll, get, put, putAll } from './db.js';
 import { CATEGORIES, checkAndSeedDB } from './seed.js';
 
@@ -21,6 +22,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     setupNavigation();
     setupEventListeners();
+    setupExerciseEditor(async () => {
+        await loadData();
+        renderDashboard();
+        renderTemplates();
+        renderRoutinesTab();
+        renderHistory();
+        closeWorkoutForm();
+    });
     
     renderDashboard();
     renderTemplates();
@@ -93,13 +102,9 @@ function renderDashboard() {
             const ex = exercisesMap[entry.exercise_id];
             if (!ex || !ex.categories) return;
             
-            ex.categories.forEach(cat => {
-                if (lastLogged[cat]) {
-                    if (ex.type === 'stretch' && log.date > lastLogged[cat].stretch) {
-                        lastLogged[cat].stretch = log.date;
-                    } else if (ex.type === 'load' && log.date > lastLogged[cat].load) {
-                        lastLogged[cat].load = log.date;
-                    }
+            categoryLinks(ex).forEach(({ category, type }) => {
+                if (lastLogged[category] && log.date > lastLogged[category][type]) {
+                    lastLogged[category][type] = log.date;
                 }
             });
         });
@@ -409,7 +414,7 @@ function openCategoryModal(cat, type) {
     
     // Find matching exercises
     const matches = Object.values(exercisesMap).filter(ex => 
-        ex.categories && ex.categories.includes(cat) && ex.type === type
+        categoryLinks(ex).some(link => link.category === cat && link.type === type)
     );
     
     if (matches.length === 0) {
@@ -625,11 +630,9 @@ function renderHistory(filter = 'all') {
     workoutLogs.forEach(log => {
         log.entries.forEach(entry => {
             const ex = exercisesMap[entry.exercise_id];
-            if (ex && targetMuscleGroups.includes(ex.name)) {
-                if (log.date > lastLogged[ex.name]) {
-                    lastLogged[ex.name] = log.date;
-                }
-            }
+            if (ex) muscleGroups(ex).forEach(group => {
+                if (group in lastLogged && log.date > lastLogged[group]) lastLogged[group] = log.date;
+            });
         });
     });
     
@@ -699,7 +702,7 @@ function renderHistory(filter = 'all') {
 
 // --- Utils ---
 function formatCategoryTags(exercise) {
-    return exercise.categories.map(cat => `${cat} · ${exercise.type === 'stretch' ? 'Stretch' : 'Load'}`).join(' / ');
+    return [...categoryLinks(exercise).map(link => `${link.category} · ${link.type === 'stretch' ? 'Stretch' : 'Load'}`), ...muscleGroups(exercise)].join(' / ');
 }
 
 function showToast(msg) {

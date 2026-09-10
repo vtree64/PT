@@ -1,9 +1,10 @@
-const CACHE_NAME = 'pt-tracker-v14';
+const CACHE_NAME = 'pt-tracker-v15';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './styles.css',
   './app.js',
+  './editor.js',
   './db.js',
   './seed.js',
   './manifest.json'

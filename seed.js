@@ -158,7 +158,7 @@ const SEED_TEMPLATES = [
     {
         id: "t3",
         name: "Session C — Anti-Movement, Deep Core",
-        description: "Farmer's Carry, Pallof Press, Knee Raises, Hip Thrusts",
+        description: "Farmer's Carry, Pallof Press, Knee Raises, Banded Crunches, Hip Thrusts",
         exercises: [
             { id: "e17", defaultSets: 3, defaultReps: "30-40 paces" },
             { id: "e20", defaultSets: 3, defaultReps: "10 (3s hold)" },
@@ -233,13 +233,13 @@ export async function checkAndSeedDB() {
             await putAll('templates', missingTpls);
         }
         // Migrate existing installs to the current built-in Session D checklist.
-        await putAll('exercises', REFORMER_EXERCISES);
-        await putAll('templates', [SEED_TEMPLATES.find(t => t.id === 't4')]);
+        await putAll('exercises', REFORMER_EXERCISES.filter(ex => !exercises.find(old => old.id === ex.id)?.userEdited));
+        await putAll('templates', SEED_TEMPLATES.filter(t => t.id === 't4' && !templates.find(old => old.id === t.id)?.userEdited));
         // Migrate existing installs to the current built-in Routine F.
-        await putAll('exercises', SEED_EXERCISES.filter(ex => NECK_EXERCISES.includes(ex.id)));
-        await putAll('templates', [SEED_TEMPLATES.find(t => t.id === 't6')]);
+        await putAll('exercises', SEED_EXERCISES.filter(ex => NECK_EXERCISES.includes(ex.id) && !exercises.find(old => old.id === ex.id)?.userEdited));
+        await putAll('templates', SEED_TEMPLATES.filter(t => t.id === 't6' && !templates.find(old => old.id === t.id)?.userEdited));
         // Keep Session A's Roman Chair mapping and Session C definition current.
-        await putAll('exercises', [SEED_EXERCISES.find(ex => ex.id === 'e36')]);
-        await putAll('templates', [SEED_TEMPLATES.find(t => t.id === 't3')]);
+        await putAll('exercises', SEED_EXERCISES.filter(ex => ex.id === 'e36' && !exercises.find(old => old.id === ex.id)?.userEdited));
+        await putAll('templates', SEED_TEMPLATES.filter(t => t.id === 't3' && !templates.find(old => old.id === t.id)?.userEdited));
     }
 }
