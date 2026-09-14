@@ -11,8 +11,33 @@ let workoutLogs = [];
 let currentWorkoutForm = {
     kind: 'pt', // pt, neck, other
     entries: [],
-    notes: ''
+    notes: '',
+    routineId: null,
+    routineName: null
 };
+
+// --- Routine badges (History tab) ---
+// Fixed palette so each routine keeps a stable, visually distinct color.
+const ROUTINE_BADGE_COLORS = ['#1a73e8', '#d93025', '#188038', '#e37400', '#9334e6', '#00796b', '#c2185b', '#5f6368'];
+
+function getRoutineLetter(name) {
+    const match = /^(?:Session|Routine)\s+([A-Za-z])\b/.exec(name || '');
+    if (match) return match[1].toUpperCase();
+    return (name || '').trim().charAt(0).toUpperCase() || '?';
+}
+
+function getRoutineColor(routineId) {
+    let hash = 0;
+    for (let i = 0; i < routineId.length; i++) hash = (hash * 31 + routineId.charCodeAt(i)) >>> 0;
+    return ROUTINE_BADGE_COLORS[hash % ROUTINE_BADGE_COLORS.length];
+}
+
+// Returns { letter, color } for a log's originating routine, or null if the
+// workout wasn't logged from a routine (freeform/other/single-exercise logs).
+function getRoutineBadge(routineId, routineName) {
+    if (!routineId) return null;
+    return { letter: getRoutineLetter(routineName), color: getRoutineColor(routineId) };
+}
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', async () => {
@@ -181,7 +206,7 @@ function renderTemplates() {
             <button class="btn btn-secondary btn-sm mt-2">Log this session</button>
         `;
         el.querySelector('button').addEventListener('click', () => {
-            openWorkoutForm(t.workoutKind || 'pt', t.exercises);
+            openWorkoutForm(t.workoutKind || 'pt', t.exercises, t);
         });
         listEl.appendChild(el);
     });
@@ -229,7 +254,7 @@ function renderRoutinesTab() {
         
         el.querySelector('.btn-log-from-routine').addEventListener('click', () => {
             document.querySelector('.nav-item[data-target="view-log"]').click();
-            openWorkoutForm(t.workoutKind || 'pt', t.exercises);
+            openWorkoutForm(t.workoutKind || 'pt', t.exercises, t);
         });
         
         listEl.appendChild(el);
@@ -246,7 +271,7 @@ function setupEventListeners() {
             return;
         }
         document.querySelector('.nav-item[data-target="view-log"]').click();
-        openWorkoutForm('neck', routineF.exercises);
+        openWorkoutForm('neck', routineF.exercises, routineF);
     });
     let newRoutineExercises = [];
 
@@ -439,10 +464,12 @@ function openCategoryModal(cat, type) {
     modal.classList.remove('hidden');
 }
 
-function openWorkoutForm(kind, initialExercises = []) {
+function openWorkoutForm(kind, initialExercises = [], routine = null) {
     currentWorkoutForm.kind = kind;
     currentWorkoutForm.entries = [];
     currentWorkoutForm.notes = '';
+    currentWorkoutForm.routineId = routine?.id || null;
+    currentWorkoutForm.routineName = routine?.name || null;
     
     document.getElementById('log-selection').classList.add('hidden');
     document.getElementById('workout-form-container').classList.remove('hidden');
@@ -603,7 +630,9 @@ async function saveWorkout() {
         date: workoutTimestamp,
         workout_kind: currentWorkoutForm.kind,
         entries: entriesToSave,
-        notes: notes
+        notes: notes,
+        routine_id: currentWorkoutForm.routineId || null,
+        routine_name: currentWorkoutForm.routineName || null
     };
     
     await put('workout_logs', log);
@@ -676,6 +705,9 @@ function renderHistory(filter = 'all') {
         let title = "Workout Session";
         if (log.workout_kind === 'neck') title = "Neck Routine";
         if (log.workout_kind === 'other') title = "Other Workout";
+
+        const badge = getRoutineBadge(log.routine_id, log.routine_name);
+        const badgeHtml = badge ? `<span class="routine-badge" style="background-color:${badge.color}">${badge.letter}</span>` : '';
         
         let entriesHtml = log.entries.map(ent => {
             const ex = exercisesMap[ent.exercise_id];
@@ -689,9 +721,9 @@ function renderHistory(filter = 'all') {
         }).join('');
         
         el.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-                <span class="template-title">${title}</span>
-                <span class="text-muted" style="font-size:12px;">${dateStr}</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px; gap:8px;">
+                <span class="template-title" style="display:flex; align-items:center; gap:8px; min-width:0;">${badgeHtml}<span>${title}</span></span>
+                <span class="text-muted" style="font-size:12px; flex-shrink:0;">${dateStr}</span>
             </div>
             ${entriesHtml ? `<ul style="font-size:13px; margin-left:16px; margin-bottom:8px; color:var(--text-primary); list-style-type:circle;">${entriesHtml}</ul>` : ''}
             ${log.notes ? `<div style="font-size:13px; font-style:italic; border-top: 1px solid var(--border-color); padding-top:4px;">"${log.notes}"</div>` : ''}
