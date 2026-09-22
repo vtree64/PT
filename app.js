@@ -1,5 +1,5 @@
 import { setupExerciseEditor, categoryLinks, muscleGroups } from './editor.js';
-import { initDB, getAll, get, put, putAll } from './db.js';
+import { initDB, getAll, get, put, putAll, remove } from './db.js';
 import { CATEGORIES, checkAndSeedDB } from './seed.js';
 
 // --- State ---
@@ -7,6 +7,11 @@ let currentView = 'view-dashboard';
 let exercisesMap = {};
 let templatesList = [];
 let workoutLogs = [];
+let historyFilter = 'all';
+
+// Workout detail/edit modal state
+let modalLogId = null;
+let modalEditEntries = [];
 
 let currentWorkoutForm = {
     kind: 'pt', // pt, neck, other
@@ -377,6 +382,11 @@ function setupEventListeners() {
         }
     });
 
+    document.getElementById('btn-modal-add-exercise').addEventListener('click', () => {
+        const sel = document.getElementById('workout-modal-exercise-select');
+        if (sel.value) addExerciseToModalForm(sel.value);
+    });
+
     document.getElementById('workout-date-select').addEventListener('change', (e) => {
         if (e.target.value === 'other') {
             document.getElementById('workout-date-custom').classList.remove('hidden');
@@ -489,26 +499,7 @@ function openWorkoutForm(kind, initialExercises = [], routine = null) {
     document.getElementById('workout-form-title').textContent = title;
     
     // Populate select
-    const select = document.getElementById('exercise-select');
-    select.innerHTML = '<option value="">-- Select Exercise --</option>';
-    
-    const targetMuscleGroups = ["Chest", "Shoulders", "Biceps", "Triceps", "Quads", "Glutes", "Hamstrings"];
-    let allExercises = Object.values(exercisesMap);
-    
-    let placeholders = allExercises.filter(ex => targetMuscleGroups.includes(ex.name));
-    let others = allExercises.filter(ex => !targetMuscleGroups.includes(ex.name));
-    
-    placeholders.sort((a, b) => targetMuscleGroups.indexOf(a.name) - targetMuscleGroups.indexOf(b.name));
-    others.sort((a, b) => a.name.localeCompare(b.name));
-    
-    const sortedExercises = [...placeholders, ...others];
-    
-    sortedExercises.forEach(ex => {
-        const opt = document.createElement('option');
-        opt.value = ex.id;
-        opt.textContent = ex.name;
-        select.appendChild(opt);
-    });
+    populateExerciseSelect(document.getElementById('exercise-select'));
     
     if (kind === 'neck' || isChecklist) {
         document.getElementById('add-exercise-group').classList.add('hidden');
@@ -647,7 +638,8 @@ async function saveWorkout() {
 }
 
 // --- History ---
-function renderHistory(filter = 'all') {
+function renderHistory(filter) {
+    if (filter) historyFilter = filter;
     const listEl = document.getElementById('history-list');
     listEl.innerHTML = '';
     
@@ -689,7 +681,7 @@ function renderHistory(filter = 'all') {
         });
     }
 
-    const filtered = workoutLogs.filter(log => filter === 'all' || log.workout_kind === filter);
+    const filtered = workoutLogs.filter(log => historyFilter === 'all' || log.workout_kind === historyFilter);
     
     if (filtered.length === 0) {
         listEl.innerHTML = '<p class="text-muted">No workouts found.</p>';
@@ -698,13 +690,11 @@ function renderHistory(filter = 'all') {
     
     filtered.forEach(log => {
         const el = document.createElement('div');
-        el.className = 'log-item';
+        el.className = 'log-item log-item-selectable';
         
         const dateStr = new Date(log.date).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
         
-        let title = "Workout Session";
-        if (log.workout_kind === 'neck') title = "Neck Routine";
-        if (log.workout_kind === 'other') title = "Other Workout";
+        const title = getLogTitle(log);
 
         const badge = getRoutineBadge(log.routine_id, log.routine_name);
         const badgeHtml = badge ? `<span class="routine-badge" style="background-color:${badge.color}">${badge.letter}</span>` : '';
@@ -725,14 +715,310 @@ function renderHistory(filter = 'all') {
                 <span class="template-title" style="display:flex; align-items:center; gap:8px; min-width:0;">${badgeHtml}<span>${title}</span></span>
                 <span class="text-muted" style="font-size:12px; flex-shrink:0;">${dateStr}</span>
             </div>
-            ${entriesHtml ? `<ul style="font-size:13px; margin-left:16px; margin-bottom:8px; color:var(--text-primary); list-style-type:circle;">${entriesHtml}</ul>` : ''}
+            ${entriesHtml ? `<ul style="font-size:13px; margin-left:16px; margin-bottom:8px; color:var(--text-primary); list-style-type:circle;">${entriesHtml}</ul>` : '<p class="text-muted" style="font-size:13px;">No exercises logged.</p>'}
             ${log.notes ? `<div style="font-size:13px; font-style:italic; border-top: 1px solid var(--border-color); padding-top:4px;">"${log.notes}"</div>` : ''}
+            <div class="log-item-hint">Tap for details · edit · delete</div>
         `;
+        
+        el.setAttribute('role', 'button');
+        el.setAttribute('tabindex', '0');
+        el.setAttribute('aria-label', `${title} - ${dateStr}. Tap for details, edit, or delete.`);
+        el.addEventListener('click', () => openWorkoutModal(log.id));
+        el.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openWorkoutModal(log.id);
+            }
+        });
+        
         listEl.appendChild(el);
     });
 }
 
+// --- History: Workout Detail / Edit / Delete ---
+function getLogTitle(log) {
+    if (log.workout_kind === 'neck') return 'Neck Routine';
+    if (log.workout_kind === 'other') return 'Other Workout';
+    return 'Workout Session';
+}
+
+function formatLogDate(ts) {
+    return new Date(ts).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// Populate an exercise <select> with all exercises: muscle-group
+// placeholders first, then the rest alphabetically.
+function populateExerciseSelect(selectEl) {
+    selectEl.innerHTML = '<option value="">-- Select Exercise --</option>';
+    
+    const targetMuscleGroups = ["Chest", "Shoulders", "Biceps", "Triceps", "Quads", "Glutes", "Hamstrings"];
+    let allExercises = Object.values(exercisesMap);
+    
+    let placeholders = allExercises.filter(ex => targetMuscleGroups.includes(ex.name));
+    let others = allExercises.filter(ex => !targetMuscleGroups.includes(ex.name));
+    
+    placeholders.sort((a, b) => targetMuscleGroups.indexOf(a.name) - targetMuscleGroups.indexOf(b.name));
+    others.sort((a, b) => a.name.localeCompare(b.name));
+    
+    [...placeholders, ...others].forEach(ex => {
+        const opt = document.createElement('option');
+        opt.value = ex.id;
+        opt.textContent = ex.name;
+        selectEl.appendChild(opt);
+    });
+}
+
+function openWorkoutModal(logId) {
+    const log = workoutLogs.find(l => l.id === logId);
+    if (!log) return;
+    modalLogId = logId;
+    renderWorkoutModalView(log);
+    document.getElementById('workout-modal').classList.remove('hidden');
+}
+
+function closeWorkoutModal() {
+    document.getElementById('workout-modal').classList.add('hidden');
+    modalLogId = null;
+    modalEditEntries = [];
+}
+
+function renderWorkoutModalView(log) {
+    document.getElementById('workout-modal-title').textContent = getLogTitle(log);
+    
+    const badge = getRoutineBadge(log.routine_id, log.routine_name);
+    const subtitleText = [formatLogDate(log.date), log.routine_name].filter(Boolean).join('  ·  ');
+    const badgeHtml = badge
+        ? `<span class="routine-badge" style="background-color:${badge.color}; margin-right:6px; vertical-align:middle;">${badge.letter}</span>`
+        : '';
+    document.getElementById('workout-modal-subtitle').innerHTML = `${badgeHtml}${escapeHtml(subtitleText)}`;
+    
+    const entriesView = document.getElementById('workout-modal-entries-view');
+    entriesView.innerHTML = '';
+    
+    if (log.entries.length === 0) {
+        entriesView.innerHTML = '<p class="text-muted">No exercises logged for this workout.</p>';
+    } else {
+        log.entries.forEach(ent => {
+            const ex = exercisesMap[ent.exercise_id];
+            const hasPrescription = ent.sets !== '' && ent.sets != null && ent.reps !== '' && ent.reps != null;
+            const meta = [
+                hasPrescription ? `${escapeHtml(ent.sets)} sets × ${escapeHtml(ent.reps)}` : '',
+                ent.weight ? escapeHtml(ent.weight) : ''
+            ].filter(Boolean).join('  ·  ');
+            const tags = ex ? formatCategoryTags(ex) : '';
+            
+            const row = document.createElement('div');
+            row.className = 'form-exercise';
+            row.innerHTML = `
+                <div class="form-exercise-title">
+                    ${ex ? escapeHtml(ex.name) : 'Unknown exercise'}
+                    ${tags ? `<span class="category-hint">${escapeHtml(tags)}</span>` : ''}
+                </div>
+                ${meta ? `<div class="workout-entry-meta">${meta}</div>` : ''}
+                ${ent.exercise_notes ? `<div class="workout-entry-note">↳ ${escapeHtml(ent.exercise_notes)}</div>` : ''}
+            `;
+            entriesView.appendChild(row);
+        });
+    }
+    
+    const notesView = document.getElementById('workout-modal-notes-view');
+    if (log.notes) {
+        notesView.classList.remove('hidden');
+        notesView.innerHTML = `
+            <label>Pain/Discomfort Notes</label>
+            <div class="workout-notes-quote">"${escapeHtml(log.notes)}"</div>
+        `;
+    } else {
+        notesView.classList.add('hidden');
+        notesView.innerHTML = '';
+    }
+    
+    document.getElementById('workout-modal-view').classList.remove('hidden');
+    document.getElementById('workout-modal-edit').classList.add('hidden');
+    renderWorkoutModalActions('view');
+}
+
+function startWorkoutEdit(log) {
+    modalEditEntries = log.entries.map(ent => ({
+        entryId: ent.entryId || 'entry_' + Date.now() + Math.random().toString(36).substr(2, 5),
+        exercise_id: ent.exercise_id,
+        sets: ent.sets ?? '',
+        reps: ent.reps ?? '',
+        weight: ent.weight ?? '',
+        exercise_notes: ent.exercise_notes ?? ''
+    }));
+    
+    const d = new Date(log.date);
+    document.getElementById('workout-modal-date').value = d.toLocaleDateString('en-CA');
+    document.getElementById('workout-modal-time').value =
+        `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    document.getElementById('workout-modal-notes').value = log.notes || '';
+    
+    populateExerciseSelect(document.getElementById('workout-modal-exercise-select'));
+    renderWorkoutModalExercises();
+    
+    document.getElementById('workout-modal-view').classList.add('hidden');
+    document.getElementById('workout-modal-edit').classList.remove('hidden');
+    renderWorkoutModalActions('edit');
+}
+
+function renderWorkoutModalExercises() {
+    const container = document.getElementById('workout-modal-entries-edit');
+    container.innerHTML = '';
+    
+    if (modalEditEntries.length === 0) {
+        container.innerHTML = '<p class="text-muted mb-4">No exercises yet. Add one below.</p>';
+        return;
+    }
+    
+    modalEditEntries.forEach(entry => {
+        const ex = exercisesMap[entry.exercise_id];
+        const el = document.createElement('div');
+        el.className = 'form-exercise';
+        el.innerHTML = `
+            <div class="form-exercise-header">
+                <span class="form-exercise-title">${ex ? escapeHtml(ex.name) : 'Unknown exercise'}</span>
+                <button class="remove-btn" type="button" data-id="${entry.entryId}">&times;</button>
+            </div>
+            <div class="form-exercise-inputs">
+                <input type="text" placeholder="Sets" value="${escapeHtml(entry.sets)}" data-field="sets" data-id="${entry.entryId}">
+                <input type="text" placeholder="Reps/Time" value="${escapeHtml(entry.reps)}" data-field="reps" data-id="${entry.entryId}">
+                <input type="text" placeholder="Weight/Band" value="${escapeHtml(entry.weight)}" data-field="weight" data-id="${entry.entryId}" style="grid-column: span 2;">
+                <input type="text" placeholder="Exercise Details (e.g. Bench Press)" value="${escapeHtml(entry.exercise_notes)}" data-field="exercise_notes" data-id="${entry.entryId}" style="grid-column: span 2;">
+            </div>
+        `;
+        
+        el.querySelector('.remove-btn').addEventListener('click', () => {
+            modalEditEntries = modalEditEntries.filter(e => e.entryId !== entry.entryId);
+            renderWorkoutModalExercises();
+        });
+        
+        el.querySelectorAll('input').forEach(inp => {
+            inp.addEventListener('input', (e) => {
+                const ent = modalEditEntries.find(x => x.entryId === e.target.getAttribute('data-id'));
+                if (ent) ent[e.target.getAttribute('data-field')] = e.target.value;
+            });
+        });
+        
+        container.appendChild(el);
+    });
+}
+
+function addExerciseToModalForm(exerciseId) {
+    const ex = exercisesMap[exerciseId];
+    if (!ex) return;
+    modalEditEntries.push({
+        entryId: 'entry_' + Date.now() + Math.random().toString(36).substr(2, 5),
+        exercise_id: exerciseId,
+        sets: 3,
+        reps: '',
+        weight: '',
+        exercise_notes: ''
+    });
+    renderWorkoutModalExercises();
+}
+
+function renderWorkoutModalActions(mode) {
+    const actions = document.getElementById('workout-modal-actions');
+    actions.innerHTML = '';
+    
+    const mkBtn = (className, text) => {
+        const btn = document.createElement('button');
+        btn.className = className;
+        btn.type = 'button';
+        btn.textContent = text;
+        actions.appendChild(btn);
+        return btn;
+    };
+    
+    if (mode === 'view') {
+        mkBtn('btn btn-primary w-100', 'Edit Workout').addEventListener('click', () => {
+            const log = workoutLogs.find(l => l.id === modalLogId);
+            if (log) startWorkoutEdit(log);
+        });
+        mkBtn('btn btn-danger w-100 mt-2', 'Delete Workout').addEventListener('click', () => deleteWorkout(modalLogId));
+        mkBtn('btn btn-secondary w-100 mt-2', 'Close').addEventListener('click', closeWorkoutModal);
+    } else {
+        mkBtn('btn btn-primary w-100', 'Save Changes').addEventListener('click', saveWorkoutFromModal);
+        mkBtn('btn btn-secondary w-100 mt-2', 'Cancel').addEventListener('click', () => {
+            const log = workoutLogs.find(l => l.id === modalLogId);
+            if (log) renderWorkoutModalView(log);
+        });
+    }
+}
+
+async function saveWorkoutFromModal() {
+    const log = workoutLogs.find(l => l.id === modalLogId);
+    if (!log) return;
+    
+    if (modalEditEntries.length === 0 && log.workout_kind !== 'other') {
+        showToast('Please add at least one exercise.');
+        return;
+    }
+    
+    let date = log.date;
+    const dateValue = document.getElementById('workout-modal-date').value;
+    if (dateValue) {
+        const [y, m, d] = dateValue.split('-');
+        const timeValue = document.getElementById('workout-modal-time').value;
+        const [hh, mm] = timeValue ? timeValue.split(':').map(Number) : [0, 0];
+        date = new Date(y, m - 1, d, hh || 0, mm || 0, 0).getTime();
+    }
+    
+    const updated = {
+        ...log,
+        date,
+        entries: modalEditEntries.map(e => ({ ...e })),
+        notes: document.getElementById('workout-modal-notes').value
+    };
+    
+    try {
+        await put('workout_logs', updated);
+    } catch (err) {
+        console.error(err);
+        showToast('Could not save changes. Please try again.');
+        return;
+    }
+    
+    const idx = workoutLogs.findIndex(l => l.id === updated.id);
+    if (idx !== -1) workoutLogs[idx] = updated;
+    else workoutLogs.push(updated);
+    workoutLogs.sort((a, b) => b.date - a.date);
+    
+    closeWorkoutModal();
+    renderHistory();
+    renderDashboard();
+    showToast('Workout updated!');
+}
+
+async function deleteWorkout(logId) {
+    const log = workoutLogs.find(l => l.id === logId);
+    if (!log) return;
+    
+    if (!window.confirm('Delete this workout? This cannot be undone.')) return;
+    
+    try {
+        await remove('workout_logs', logId);
+    } catch (err) {
+        console.error(err);
+        showToast('Could not delete workout. Please try again.');
+        return;
+    }
+    
+    workoutLogs = workoutLogs.filter(l => l.id !== logId);
+    closeWorkoutModal();
+    renderHistory();
+    renderDashboard();
+    showToast('Workout deleted.');
+}
+
 // --- Utils ---
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
+}
+
 function formatCategoryTags(exercise) {
     return [...categoryLinks(exercise).map(link => `${link.category} · ${link.type === 'stretch' ? 'Stretch' : 'Load'}`), ...muscleGroups(exercise)].join(' / ');
 }

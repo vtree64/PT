@@ -74,6 +74,16 @@ export function put(storeName, item) {
     });
 }
 
+export function remove(storeName, id) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(storeName, 'readwrite');
+        const store = transaction.objectStore(storeName);
+        const request = store.delete(id);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+}
+
 export function putAll(storeName, items) {
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(storeName, 'readwrite');
